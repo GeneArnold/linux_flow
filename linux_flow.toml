@@ -1,0 +1,27 @@
+[app]
+version = "0.1.0"
+autostart = false
+
+[audio]
+device_index = 6
+sample_rate = 16000
+channels = 1
+
+[hotkey]
+modifiers = ["ctrl"]
+key = "space"
+
+[groq]
+api_key = ""
+whisper_model = "whisper-large-v3"
+llm_model = "llama-3.3-70b-versatile"
+
+[enhancement]
+mode = "raw"
+
+[output]
+auto_paste = true
+save_history = true
+
+[ui]
+overlay_position = "bottom"
