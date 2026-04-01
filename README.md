@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="screenshots/Linux-Flow-Logo-Transparent.png" alt="Linux Flow Logo" width="300">
+  <img src="screenshots/Linux-Flow-Logo.png" alt="Linux Flow Logo" width="300">
 </p>
 
 # Linux Flow
