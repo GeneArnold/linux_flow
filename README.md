@@ -183,7 +183,10 @@ GROQ_API_KEY="gsk_your_key_here"
 
 ## Contributing
 
-Pull requests welcome. The Wayland adapter (`adapters/wayland.py`) is the most impactful open item.
+Pull requests welcome. Open items:
+
+- **Wayland support** — `adapters/wayland.py` stubs are ready, needs implementation via `python-evdev` (hotkeys) and `wl-copy` + `ydotool` (text injection)
+- **REST API** — `api/` directory is scaffolded but empty. A simple FastAPI or Flask layer exposing `/transcribe` and `/history` endpoints would let other tools trigger dictation and pull history programmatically
 
 ---
 
