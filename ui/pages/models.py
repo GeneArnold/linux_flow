@@ -1,10 +1,12 @@
 """Models settings page — Groq API key and model selection."""
 
+import threading
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 import config
 
@@ -58,12 +60,29 @@ class ModelsPage(Gtk.Box):
         save_btn.connect("clicked", lambda _: self._save_key())
         key_row.add_suffix(save_btn)
 
-        # Also save automatically when focus leaves the field
         focus_ctrl = Gtk.EventControllerFocus()
         focus_ctrl.connect("leave", lambda _: self._save_key())
         key_row.add_controller(focus_ctrl)
 
         api_group.add(key_row)
+
+        # Test connection row
+        test_row = Adw.ActionRow(
+            title="Verify Connection",
+            subtitle="Check that your key works and both models are reachable",
+        )
+        self._test_btn = Gtk.Button(label="Test")
+        self._test_btn.set_valign(Gtk.Align.CENTER)
+        self._test_btn.add_css_class("pill")
+        self._test_btn.connect("clicked", self._on_test_clicked)
+        test_row.add_suffix(self._test_btn)
+
+        self._result_label = Gtk.Label()
+        self._result_label.set_valign(Gtk.Align.CENTER)
+        self._result_label.set_visible(False)
+        test_row.add_suffix(self._result_label)
+
+        api_group.add(test_row)
 
         # --- Transcription model ---
         whisper_group = Adw.PreferencesGroup(
@@ -111,6 +130,51 @@ class ModelsPage(Gtk.Box):
 
     def _on_key_apply(self, row) -> None:
         self._save_key()
+
+    def _on_test_clicked(self, _) -> None:
+        self._test_btn.set_sensitive(False)
+        self._test_btn.set_label("Testing…")
+        self._result_label.set_visible(False)
+        threading.Thread(target=self._run_test, daemon=True).start()
+
+    def _run_test(self) -> None:
+        api_key = self._key_row.get_text().strip()
+        whisper = _WHISPER_MODELS[self._whisper_combo.get_selected()]
+        llm = _LLM_MODELS[self._llm_combo.get_selected()]
+
+        try:
+            from groq import Groq
+
+            client = Groq(api_key=api_key)
+            available = {m.id for m in client.models.list().data}
+
+            whisper_ok = whisper in available
+            llm_ok = llm in available
+
+            w = "✓" if whisper_ok else "✗"
+            l = "✓" if llm_ok else "✗"
+            msg = f"Key OK   Whisper {w}   LLM {l}"
+            ok = whisper_ok and llm_ok
+        except Exception as e:
+            err = str(e)
+            # Trim verbose Groq error messages to the key part
+            if "invalid_api_key" in err.lower() or "401" in err:
+                err = "Invalid API key"
+            elif "connection" in err.lower():
+                err = "No connection"
+            msg = f"✗  {err}"
+            ok = False
+
+        GLib.idle_add(self._show_result, msg, ok)
+
+    def _show_result(self, msg: str, ok: bool) -> None:
+        self._result_label.set_text(msg)
+        self._result_label.remove_css_class("success")
+        self._result_label.remove_css_class("error")
+        self._result_label.add_css_class("success" if ok else "error")
+        self._result_label.set_visible(True)
+        self._test_btn.set_label("Test")
+        self._test_btn.set_sensitive(True)
 
     def _on_whisper_changed(self, combo, _) -> None:
         model = _WHISPER_MODELS[combo.get_selected()]
