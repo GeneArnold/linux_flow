@@ -6,7 +6,7 @@ _DEFAULTS covers every key so the app starts safely without it.
 Key design decisions:
 - _deep_merge lets the on-disk file override only the keys it declares;
   missing keys fall back to defaults automatically.
-- GROQ_API_KEY env var is a fallback so CI/server use works without a toml.
+- GROQ_API_KEY lives exclusively in .env / environment — never in the toml.
 - tomli_w (optional) writes proper TOML. If absent, the manual fallback
   writer handles simple nested dicts (all we need).
 
@@ -36,7 +36,6 @@ _DEFAULTS = {
     "audio": {"device_index": -1, "sample_rate": 16000, "channels": 1},
     "hotkey": {"modifiers": ["ctrl"], "key": "space"},
     "groq": {
-        "api_key": "",
         "whisper_model": "whisper-large-v3",
         "llm_model": "llama-3.3-70b-versatile",
     },
@@ -78,10 +77,8 @@ def load() -> dict:
     """Load config from disk merged with defaults.
     Safe to call repeatedly — reads from disk each time (no caching).
 
-    API key resolution order:
-      1. .env file (GROQ_API_KEY=...)  ← preferred, gitignored
-      2. GROQ_API_KEY environment variable
-      3. api_key in linux_flow.toml    ← least preferred, can end up in git
+    API key is resolved from .env / GROQ_API_KEY env var only — it is
+    never stored in linux_flow.toml.
     """
     _load_env()
     cfg = _deep_merge({}, _DEFAULTS)
@@ -89,9 +86,8 @@ def load() -> dict:
         with open(CONFIG_PATH, "rb") as f:
             on_disk = tomllib.load(f)
         cfg = _deep_merge(cfg, on_disk)
-    # Overlay the key from env so the toml entry can safely stay blank
-    if not cfg["groq"]["api_key"]:
-        cfg["groq"]["api_key"] = os.environ.get("GROQ_API_KEY", "")
+    # API key lives exclusively in .env / environment
+    cfg["groq"]["api_key"] = os.environ.get("GROQ_API_KEY", "")
     return cfg
 
 
@@ -99,6 +95,10 @@ def save(cfg: dict) -> None:
     """Write the full config dict to disk as TOML.
     Prefer tomli_w if available; fall back to a manual serialiser for simple cases.
     """
+    # Never persist api_key to the TOML — it lives in .env only
+    cfg = _deep_merge({}, cfg)
+    cfg.get("groq", {}).pop("api_key", None)
+
     if _HAS_TOMLI_W:
         with open(CONFIG_PATH, "wb") as f:
             tomli_w.dump(cfg, f)
