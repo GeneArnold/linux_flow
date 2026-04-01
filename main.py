@@ -9,6 +9,17 @@ Usage:
 import argparse
 import sys
 
+import gi
+
+gi.require_version("GLib", "2.0")
+from gi.repository import GLib
+
+# Must be set before GTK initialises so the WM_CLASS X11 property matches
+# the StartupWMClass in linux-flow.desktop — this is how GNOME knows to show
+# our icon in the dock instead of the generic Python gear.
+GLib.set_prgname("linux-flow")
+GLib.set_application_name("Linux Flow")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

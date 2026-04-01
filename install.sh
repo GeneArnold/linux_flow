@@ -38,7 +38,7 @@ Icon=linux-flow
 Terminal=false
 Categories=Utility;Accessibility;
 Keywords=voice;dictation;speech;transcription;ai;groq;
-StartupWMClass=com.genearnold.linux_flow
+StartupWMClass=linux-flow
 EOF
 echo "Desktop entry installed to $APPS_DIR/linux-flow.desktop"
 
