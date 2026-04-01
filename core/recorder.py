@@ -99,6 +99,9 @@ class Recorder:
         """Return all available input devices as a list of dicts.
         Used by the mic selector UI dropdown and the --list-mics CLI flag.
         """
+        # Force PortAudio to rescan devices (it caches the list at init time)
+        sd._terminate()
+        sd._initialize()
         devices = []
         for i, dev in enumerate(sd.query_devices()):
             if dev["max_input_channels"] > 0:
