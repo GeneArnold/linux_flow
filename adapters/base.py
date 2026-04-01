@@ -1,9 +1,16 @@
-"""Abstract interfaces for platform-specific operations.
+"""Abstract interfaces for platform-specific text injection and hotkey listening.
 
-X11 implementation:     adapters/x11.py
-Wayland implementation: adapters/wayland.py (future)
+Concrete implementations:
+  X11     → adapters/x11.py      (current — uses xdotool + pynput)
+  Wayland → adapters/wayland.py  (stubs — not yet implemented)
 
-Auto-detected at runtime via XDG_SESSION_TYPE environment variable.
+The factory functions below auto-detect the session type from XDG_SESSION_TYPE
+and return the appropriate implementation. Engine and UI code only ever touch
+these ABCs and the factory functions, never the concrete classes directly.
+
+Adding a new platform:
+1. Create adapters/<platform>.py implementing TextInjector and HotkeyListener
+2. Add a branch to get_injector() and get_hotkey_listener() below
 """
 
 import os
@@ -12,7 +19,7 @@ from typing import Callable
 
 
 class TextInjector(ABC):
-    """Injects text into the currently focused window."""
+    """Types text into the currently focused window and/or sets the clipboard."""
 
     @abstractmethod
     def inject(self, text: str) -> bool:
@@ -24,25 +31,26 @@ class TextInjector(ABC):
 
 
 class HotkeyListener(ABC):
-    """Listens for a global hotkey combination."""
+    """Listens globally for a configurable hotkey combination."""
 
     @abstractmethod
     def start(self, on_press: Callable, on_release: Callable) -> None:
-        """Start listening. on_press/on_release called when hotkey state changes."""
+        """Start the listener. Callbacks are fired from a background thread —
+        callers must use GLib.idle_add() for any GTK operations."""
 
     @abstractmethod
     def stop(self) -> None:
-        """Stop listening and clean up."""
+        """Stop listening and release any held resources."""
 
 
 def get_session_type() -> str:
-    """Return 'x11' or 'wayland' based on the current session."""
+    """Return 'x11' or 'wayland' based on XDG_SESSION_TYPE env var."""
     return os.environ.get("XDG_SESSION_TYPE", "x11").lower()
 
 
 def get_injector() -> TextInjector:
-    session = get_session_type()
-    if session == "wayland":
+    """Return the TextInjector for the current display session."""
+    if get_session_type() == "wayland":
         from adapters.wayland import WaylandInjector
 
         return WaylandInjector()
@@ -52,8 +60,8 @@ def get_injector() -> TextInjector:
 
 
 def get_hotkey_listener(modifiers: list[str], key: str) -> HotkeyListener:
-    session = get_session_type()
-    if session == "wayland":
+    """Return the HotkeyListener for the current display session."""
+    if get_session_type() == "wayland":
         from adapters.wayland import WaylandHotkeyListener
 
         return WaylandHotkeyListener(modifiers, key)

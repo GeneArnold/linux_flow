@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Linux Flow
+GenericName=Voice Dictation
+Comment=Voice dictation for Linux powered by Groq AI
+# Exec is rewritten by install.sh with the actual venv path
+Exec=linux-flow
+Icon=linux-flow
+Terminal=false
+Categories=Utility;Accessibility;
+Keywords=voice;dictation;speech;transcription;ai;groq;
+StartupWMClass=com.genearnold.linux_flow

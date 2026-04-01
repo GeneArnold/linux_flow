@@ -1,4 +1,4 @@
-"""About page."""
+"""About page — app info and credits."""
 
 import gi
 
@@ -36,15 +36,20 @@ class AboutPage(Gtk.Box):
 
         desc = Gtk.Label(
             label=(
-                "A free, open-source Wispr Flow alternative.\n"
-                "Powered by Groq Whisper for near-instant transcription\n"
-                "and Llama for AI-powered text enhancement."
+                "Hold a hotkey, speak, release — your words appear instantly wherever\n"
+                "your cursor is. Powered by Groq's ultra-fast Whisper API for\n"
+                "transcription and Llama for optional AI text enhancement.\n\n"
+                "Free and open source. No subscription. No data stored in the cloud."
             )
         )
         desc.set_justify(Gtk.Justification.CENTER)
         desc.add_css_class("body")
         desc.set_margin_top(20)
         outer.append(desc)
+
+        # Tip link placeholder — replace with real URL when available
+        # tip_btn = Gtk.LinkButton(uri="https://...", label="Buy me a coffee ☕")
+        # outer.append(tip_btn)
 
         sep = Gtk.Separator()
         sep.set_margin_top(24)
@@ -76,3 +81,12 @@ class AboutPage(Gtk.Box):
             Gtk.Image.new_from_icon_name("applications-graphics-symbolic")
         )
         info_group.add(ui_row)
+
+        source_row = Adw.ActionRow(
+            title="Source Code",
+            subtitle="github.com/GeneArnold/linux_flow",
+        )
+        source_row.add_prefix(
+            Gtk.Image.new_from_icon_name("system-software-install-symbolic")
+        )
+        info_group.add(source_row)
