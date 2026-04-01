@@ -49,8 +49,20 @@ class ModelsPage(Gtk.Box):
         key_row = Adw.PasswordEntryRow(title="API Key")
         key_row.set_text(self._cfg["groq"]["api_key"])
         key_row.connect("apply", self._on_key_apply)
-        key_row.connect("changed", self._on_key_changed)
         self._key_row = key_row
+
+        save_btn = Gtk.Button(icon_name="document-save-symbolic")
+        save_btn.set_valign(Gtk.Align.CENTER)
+        save_btn.add_css_class("suggested-action")
+        save_btn.set_tooltip_text("Save API key")
+        save_btn.connect("clicked", lambda _: self._save_key())
+        key_row.add_suffix(save_btn)
+
+        # Also save automatically when focus leaves the field
+        focus_ctrl = Gtk.EventControllerFocus()
+        focus_ctrl.connect("leave", lambda _: self._save_key())
+        key_row.add_controller(focus_ctrl)
+
         api_group.add(key_row)
 
         # --- Transcription model ---
@@ -93,12 +105,12 @@ class ModelsPage(Gtk.Box):
         llm_row.add_suffix(self._llm_combo)
         llm_group.add(llm_row)
 
-    def _on_key_changed(self, row) -> None:
-        pass  # saved on apply (Enter) or focus-out
+    def _save_key(self) -> None:
+        config.set_value("groq", "api_key", self._key_row.get_text())
+        self._engine.reload()
 
     def _on_key_apply(self, row) -> None:
-        config.set_value("groq", "api_key", row.get_text())
-        self._engine.reload()
+        self._save_key()
 
     def _on_whisper_changed(self, combo, _) -> None:
         model = _WHISPER_MODELS[combo.get_selected()]
