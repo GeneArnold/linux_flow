@@ -44,6 +44,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_title("Linux Flow")
         self.set_default_size(820, 580)
         self.set_resizable(True)
+        # Dock/taskbar icon — "linux-flow" is installed by install.sh;
+        # falls back gracefully to the theme default if not found.
+        self.set_icon_name("linux-flow")
 
         # Apply CSS
         provider = Gtk.CssProvider()

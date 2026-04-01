@@ -35,11 +35,6 @@ class LinuxFlowApp(Adw.Application):
             application_id="com.genearnold.linux_flow",
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
         )
-        # Set the application icon — GNOME uses this for the dock/taskbar.
-        # After running install.sh the "linux-flow" icon is in the user icon
-        # theme; before that it falls back to the system mic icon.
-        self.set_icon_name("linux-flow")
-
         self._engine = Engine()
         self._window: MainWindow | None = None
         self._tray: Tray | None = None
