@@ -24,11 +24,20 @@ def _make_icon(recording: bool = False) -> Image.Image:
     size = 64
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    color = (220, 50, 50, 255) if recording else (200, 200, 200, 255)
-    d.rounded_rectangle([22, 4, 42, 38], radius=10, fill=color)
-    d.arc([14, 20, 50, 48], start=0, end=180, fill=color, width=3)
-    d.rectangle([30, 48, 34, 56], fill=color)
-    d.rectangle([22, 56, 42, 60], fill=color)
+    color = (220, 50, 50, 255) if recording else (210, 210, 210, 255)
+
+    # Capsule body
+    d.rounded_rectangle([22, 4, 42, 36], radius=10, fill=color)
+
+    # Pickup arc — bottom half curves under the capsule like a stand mic
+    d.arc([12, 18, 52, 50], start=0, end=180, fill=color, width=4)
+
+    # Neck
+    d.rectangle([30, 50, 34, 57], fill=color)
+
+    # Base
+    d.rounded_rectangle([19, 57, 45, 62], radius=3, fill=color)
+
     return img
 
 
