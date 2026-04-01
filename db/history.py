@@ -24,6 +24,26 @@ from pathlib import Path
 DB_PATH = Path(__file__).parent.parent / "history.db"
 
 
+# Ensure the table exists the moment this module is imported.
+# This means the UI can query history before the engine has started.
+def _ensure_init():
+    with sqlite3.connect(DB_PATH) as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS history (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                raw_text   TEXT NOT NULL,
+                final_text TEXT NOT NULL,
+                mode       TEXT NOT NULL,
+                duration_s REAL,
+                injected   INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+
+
+_ensure_init()
+
+
 def _conn() -> sqlite3.Connection:
     """Open a connection with row_factory=sqlite3.Row so rows act like dicts."""
     con = sqlite3.connect(DB_PATH)
@@ -32,7 +52,11 @@ def _conn() -> sqlite3.Connection:
 
 
 def init() -> None:
-    """Create the history table if it doesn't exist. Called once at engine start."""
+    """Create the history table if it doesn't exist.
+    Safe to call multiple times — CREATE TABLE IF NOT EXISTS is idempotent.
+    Called explicitly by the engine at startup and implicitly by all public
+    functions below so the UI can query history before the engine starts.
+    """
     with _conn() as con:
         con.execute("""
             CREATE TABLE IF NOT EXISTS history (
