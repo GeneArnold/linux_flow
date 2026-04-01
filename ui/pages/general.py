@@ -5,13 +5,18 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gdk, Gtk
+from gi.repository import Adw, Gdk, GLib, Gtk
 
 import config
 from core.recorder import Recorder
 
 _MODES = ["raw", "clean", "rewrite"]
 _MODE_LABELS = ["Raw (no AI)", "Clean (fix grammar)", "Rewrite (polish prose)"]
+_MODE_HINTS = [
+    "Exact words, no changes",
+    "Fix grammar, remove filler",
+    "Polish into flowing prose",
+]
 
 _GDK_MOD_MAP = {
     "Control_L": "ctrl",
@@ -108,6 +113,7 @@ class GeneralPage(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self._engine = engine
         self._cfg = config.load()
+        self._test_recorder = None  # active Recorder during mic test, else None
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_vexpand(True)
@@ -138,12 +144,13 @@ class GeneralPage(Gtk.Box):
         hotkey_group.add(hotkey_row)
 
         # --- Audio group ---
-        audio_group = Adw.PreferencesGroup(title="Audio")
+        audio_group = Adw.PreferencesGroup(title="Microphone")
         outer.append(audio_group)
 
-        mic_row = Adw.ActionRow(title="Microphone")
+        mic_row = Adw.ActionRow()
         self._mic_combo = Gtk.DropDown()
         self._mic_combo.set_valign(Gtk.Align.CENTER)
+        self._mic_combo.set_hexpand(True)
         self._populate_mics()
         self._mic_combo.connect("notify::selected", self._on_mic_changed)
 
@@ -153,24 +160,45 @@ class GeneralPage(Gtk.Box):
         refresh_btn.set_tooltip_text("Refresh microphone list")
         refresh_btn.connect("clicked", lambda _: self._populate_mics())
 
-        mic_row.add_suffix(self._mic_combo)
+        self._test_btn = Gtk.ToggleButton(label="Test")
+        self._test_btn.set_valign(Gtk.Align.CENTER)
+        self._test_btn.set_tooltip_text("Open mic and show live input level")
+        self._test_btn.connect("toggled", self._on_test_toggled)
+
+        mic_row.add_prefix(self._mic_combo)
         mic_row.add_suffix(refresh_btn)
+        mic_row.add_suffix(self._test_btn)
         audio_group.add(mic_row)
+
+        # Live input level bar — only visible while the test is running
+        level_row = Adw.ActionRow(title="Input Level")
+        self._level_bar = Gtk.LevelBar()
+        self._level_bar.set_min_value(0.0)
+        self._level_bar.set_max_value(1.0)
+        self._level_bar.set_value(0.0)
+        self._level_bar.set_valign(Gtk.Align.CENTER)
+        self._level_bar.set_hexpand(True)
+        level_row.add_suffix(self._level_bar)
+        level_row.set_visible(False)
+        self._level_row = level_row
+        audio_group.add(level_row)
+
+        # Stop the mic test if the user navigates away from this page
+        self.connect("unmap", lambda _: self._stop_mic_test())
 
         # --- Enhancement group ---
         enhance_group = Adw.PreferencesGroup(title="AI Enhancement")
         outer.append(enhance_group)
 
-        mode_row = Adw.ActionRow(title="Mode")
+        current_mode = self._cfg["enhancement"]["mode"]
+        current_idx = _MODES.index(current_mode) if current_mode in _MODES else 0
+        self._mode_row = Adw.ActionRow(title="Mode", subtitle=_MODE_HINTS[current_idx])
         self._mode_combo = Gtk.DropDown.new_from_strings(_MODE_LABELS)
         self._mode_combo.set_valign(Gtk.Align.CENTER)
-        current_mode = self._cfg["enhancement"]["mode"]
-        self._mode_combo.set_selected(
-            _MODES.index(current_mode) if current_mode in _MODES else 1
-        )
+        self._mode_combo.set_selected(current_idx)
         self._mode_combo.connect("notify::selected", self._on_mode_changed)
-        mode_row.add_suffix(self._mode_combo)
-        enhance_group.add(mode_row)
+        self._mode_row.add_suffix(self._mode_combo)
+        enhance_group.add(self._mode_row)
 
         # --- Output group ---
         output_group = Adw.PreferencesGroup(title="Output")
@@ -191,6 +219,47 @@ class GeneralPage(Gtk.Box):
         history_row.set_active(self._cfg["output"]["save_history"])
         history_row.connect("notify::active", self._on_history_changed)
         output_group.add(history_row)
+
+    def _on_test_toggled(self, btn) -> None:
+        if btn.get_active():
+            self._start_mic_test()
+        else:
+            self._stop_mic_test()
+
+    def _start_mic_test(self) -> None:
+        self._stop_mic_test()  # clean up any previous run
+        idx = self._mic_combo.get_selected()
+        dev_index = (
+            self._mic_devices[idx]["index"]
+            if hasattr(self, "_mic_devices") and idx < len(self._mic_devices)
+            else -1
+        )
+        self._test_recorder = Recorder(device_index=dev_index)
+        self._test_recorder.on_level = self._on_test_level
+        self._test_recorder.start()
+        self._level_bar.set_value(0.0)
+        self._level_row.set_visible(True)
+
+    def _stop_mic_test(self) -> None:
+        if self._test_recorder is not None:
+            try:
+                self._test_recorder.stop()
+            except Exception:
+                pass
+            self._test_recorder = None
+        self._level_row.set_visible(False)
+        self._level_bar.set_value(0.0)
+        # Untoggle button without re-triggering the callback
+        self._test_btn.handler_block_by_func(self._on_test_toggled)
+        self._test_btn.set_active(False)
+        self._test_btn.handler_unblock_by_func(self._on_test_toggled)
+
+    def _on_test_level(self, rms: float) -> None:
+        # rms is a raw amplitude from int16 audio (0–32767 range).
+        # Divide by 8000 so a normal speaking voice sits comfortably in
+        # the middle of the bar; cap at 1.0 so it never clips.
+        value = min(rms / 8000.0, 1.0)
+        GLib.idle_add(self._level_bar.set_value, value)
 
     def _on_hotkey_changed(self, modifiers: list[str], key: str) -> None:
         config.set_value("hotkey", "modifiers", modifiers)
@@ -216,10 +285,12 @@ class GeneralPage(Gtk.Box):
             dev_index = self._mic_devices[idx]["index"]
             config.set_value("audio", "device_index", dev_index)
             self._engine.reload()
+            self._stop_mic_test()  # restart would use stale device; let user re-enable
 
     def _on_mode_changed(self, combo, _) -> None:
-        mode = _MODES[combo.get_selected()]
-        config.set_value("enhancement", "mode", mode)
+        idx = combo.get_selected()
+        config.set_value("enhancement", "mode", _MODES[idx])
+        self._mode_row.set_subtitle(_MODE_HINTS[idx])
         self._engine.reload()
 
     def _on_paste_changed(self, row, _) -> None:

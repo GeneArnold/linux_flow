@@ -47,6 +47,12 @@ class AboutPage(Gtk.Box):
         desc.set_margin_top(20)
         outer.append(desc)
 
+        credits = Gtk.Label(label="Designed by Gene Arnold · Built by Claude Code")
+        credits.add_css_class("caption")
+        credits.add_css_class("dim-label")
+        credits.set_margin_top(8)
+        outer.append(credits)
+
         # Tip link placeholder — replace with real URL when available
         # tip_btn = Gtk.LinkButton(uri="https://...", label="Buy me a coffee ☕")
         # outer.append(tip_btn)

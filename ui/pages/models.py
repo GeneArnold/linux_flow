@@ -175,6 +175,11 @@ class ModelsPage(Gtk.Box):
         self._result_label.set_visible(True)
         self._test_btn.set_label("Test")
         self._test_btn.set_sensitive(True)
+        GLib.timeout_add_seconds(3, self._reset_result)
+
+    def _reset_result(self) -> bool:
+        self._result_label.set_visible(False)
+        return False  # don't repeat
 
     def _on_whisper_changed(self, combo, _) -> None:
         model = _WHISPER_MODELS[combo.get_selected()]

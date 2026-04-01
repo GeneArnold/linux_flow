@@ -13,7 +13,7 @@ from ui.pages.history import HistoryPage
 from ui.pages.models import ModelsPage
 
 _NAV_ITEMS = [
-    ("General", "preferences-system-symbolic", "general"),
+    ("General", "view-list-symbolic", "general"),
     ("Models", "applications-science-symbolic", "models"),
     ("Advanced", "emblem-system-symbolic", "advanced"),
     ("History", "document-open-recent-symbolic", "history"),
