@@ -4,6 +4,8 @@
 
 Linux Flow is a free, open-source voice dictation app for Linux. It captures your microphone, sends the audio to Groq's ultra-fast Whisper API for transcription, optionally polishes the result with a Llama LLM, and injects the text directly into whatever window you're typing in — no copy/paste required.
 
+![About](screenshots/about.png)
+
 ---
 
 ## Features
@@ -50,11 +52,40 @@ pip install -r requirements.txt
 # 4. Install icon and desktop entry (gives you the correct dock icon)
 bash install.sh
 
-# 5. Run
+# 5. Launch from your app menu, or run directly:
 python main.py
 ```
 
-On first launch, go to **Settings → Models**, paste your Groq API key, and click the save button (or press Enter). Hit **Verify Connection** to confirm everything is working.
+On first launch, go to **Settings → Models**, paste your Groq API key, and click the save button. Hit **Verify Connection** to confirm everything is working.
+
+---
+
+## Screenshots
+
+### General Settings
+Configure your hotkey, microphone, AI enhancement mode, and output options.
+
+![General Settings](screenshots/general-settings.png)
+
+### Models
+Enter your Groq API key, choose Whisper and LLM models, and verify your connection.
+
+![Models](screenshots/models-settings.png)
+
+### Transcription History
+Every dictation is saved locally. Click any entry to copy it to the clipboard.
+
+![History](screenshots/history.png)
+
+### Advanced Settings
+Autostart, overlay position, IBus conflict fix, and diagnostic tools.
+
+![Advanced Settings](screenshots/advanced-settings.png)
+
+### System Tray
+Runs silently in the background. Right-click to copy last transcript, open settings, or quit.
+
+![Tray Menu](screenshots/tray-menu.png)
 
 ---
 
@@ -78,7 +109,7 @@ On first launch, go to **Settings → Models**, paste your Groq API key, and cli
 linux_flow/
 ├── main.py              Entry point. --list-mics flag for mic debugging.
 ├── config.py            TOML loader/writer with deep-merge defaults.
-├── linux_flow.toml      User config (API key, hotkey, mic, etc.)
+├── linux_flow.toml      User config (hotkey, mic, models, etc.)
 │
 ├── core/
 │   ├── engine.py        Orchestrates the full pipeline. Owns all workers.
@@ -114,7 +145,7 @@ linux_flow/
 
 ## Configuration
 
-Edit `linux_flow.toml` directly or use the Settings UI:
+Edit `linux_flow.toml` directly or use the Settings UI. The API key is stored separately in a gitignored `.env` file:
 
 ```toml
 [audio]
@@ -125,7 +156,6 @@ modifiers = ["ctrl"]
 key = "space"
 
 [groq]
-api_key = ""            # Set via UI or GROQ_API_KEY env var
 whisper_model = "whisper-large-v3"
 llm_model = "llama-3.3-70b-versatile"
 
@@ -135,6 +165,11 @@ mode = "raw"            # raw | clean | rewrite
 [output]
 auto_paste = true       # false = clipboard only
 save_history = true
+```
+
+The API key is saved to `.env` (gitignored) when set via the UI, or you can set it manually:
+```
+GROQ_API_KEY="gsk_your_key_here"
 ```
 
 ---
