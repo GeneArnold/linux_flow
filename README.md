@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="screenshots/Linux-Flow-Logo-Transparent.png" alt="Linux Flow Logo" width="300">
+</p>
+
 # Linux Flow
 
 **Hold a key, speak, release — your words appear wherever your cursor is.**

@@ -9,8 +9,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_PYTHON="$SCRIPT_DIR/venv/bin/python"
-ICON_SRC="$SCRIPT_DIR/assets/linux-flow.svg"
-ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
+ICON_SRC="$SCRIPT_DIR/assets/linux-flow-icon.png"
+ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
 APPS_DIR="$HOME/.local/share/applications"
 
 # --- Sanity checks ---
@@ -22,8 +22,8 @@ fi
 
 # --- Install icon ---
 mkdir -p "$ICON_DIR"
-cp "$ICON_SRC" "$ICON_DIR/linux-flow.svg"
-echo "Icon installed to $ICON_DIR/linux-flow.svg"
+cp "$ICON_SRC" "$ICON_DIR/linux-flow.png"
+echo "Icon installed to $ICON_DIR/linux-flow.png"
 
 # --- Install desktop entry ---
 mkdir -p "$APPS_DIR"
