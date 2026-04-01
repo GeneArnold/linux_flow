@@ -27,6 +27,7 @@ except ImportError:
     _HAS_TOMLI_W = False
 
 CONFIG_PATH = Path(__file__).parent / "linux_flow.toml"
+ENV_PATH = Path(__file__).parent / ".env"
 
 # Default values for every setting. The on-disk TOML is merged on top of these,
 # so any missing key silently falls back to the default here.
@@ -58,16 +59,37 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+def _load_env() -> None:
+    """Load .env file into os.environ if it exists.
+    Only sets variables not already present in the environment.
+    Format: KEY=value (lines starting with # are ignored).
+    """
+    if not ENV_PATH.exists():
+        return
+    for line in ENV_PATH.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        os.environ.setdefault(k.strip(), v.strip().strip("\"'"))
+
+
 def load() -> dict:
     """Load config from disk merged with defaults.
     Safe to call repeatedly — reads from disk each time (no caching).
+
+    API key resolution order:
+      1. .env file (GROQ_API_KEY=...)  ← preferred, gitignored
+      2. GROQ_API_KEY environment variable
+      3. api_key in linux_flow.toml    ← least preferred, can end up in git
     """
+    _load_env()
     cfg = _deep_merge({}, _DEFAULTS)
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH, "rb") as f:
             on_disk = tomllib.load(f)
         cfg = _deep_merge(cfg, on_disk)
-    # Allow API key to come from environment (useful for CI or server deployments)
+    # Overlay the key from env so the toml entry can safely stay blank
     if not cfg["groq"]["api_key"]:
         cfg["groq"]["api_key"] = os.environ.get("GROQ_API_KEY", "")
     return cfg
@@ -101,7 +123,30 @@ def save(cfg: dict) -> None:
 
 
 def set_value(section: str, key: str, value: Any) -> None:
-    """Update a single key in a section and save. Used by UI settings pages."""
+    """Update a single key in a section and save. Used by UI settings pages.
+
+    Special case: groq.api_key is written to .env (gitignored) rather than
+    linux_flow.toml so it can never accidentally be committed to git.
+    """
+    if section == "groq" and key == "api_key":
+        _save_env_key("GROQ_API_KEY", value)
+        os.environ["GROQ_API_KEY"] = value
+        return
     cfg = load()
     cfg[section][key] = value
     save(cfg)
+
+
+def _save_env_key(env_key: str, value: str) -> None:
+    """Write or update a single KEY=value line in the .env file."""
+    lines = ENV_PATH.read_text().splitlines() if ENV_PATH.exists() else []
+    # Replace existing line if present, otherwise append
+    found = False
+    for i, line in enumerate(lines):
+        if line.startswith(f"{env_key}=") or line.startswith(f"{env_key} ="):
+            lines[i] = f'{env_key}="{value}"'
+            found = True
+            break
+    if not found:
+        lines.append(f'{env_key}="{value}"')
+    ENV_PATH.write_text("\n".join(lines) + "\n")
