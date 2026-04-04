@@ -82,42 +82,43 @@ class AdvancedPage(Gtk.Box):
         pos_row.add_suffix(self._pos_combo)
         overlay_group.add(pos_row)
 
-        # --- Compatibility group ---
-        compat_group = Adw.PreferencesGroup(
-            title="Compatibility",
-            description="Known conflicts with other system components",
-        )
-        outer.append(compat_group)
+        # --- Compatibility group (only shown if IBus is installed) ---
+        if self._ibus_schema_exists():
+            compat_group = Adw.PreferencesGroup(
+                title="Compatibility",
+                description="Known conflicts with other system components",
+            )
+            outer.append(compat_group)
 
-        ibus_row = Adw.ActionRow(
-            title="IBus Input Method Conflict",
-            subtitle=(
-                "Ctrl+Space is also used by IBus (Ubuntu's input method switcher), "
-                "causing a brief popup when you trigger Linux Flow. "
-                "Click Fix to disable the IBus hotkey — this does not affect typing."
-            ),
-        )
-        ibus_row.set_subtitle_lines(4)
+            ibus_row = Adw.ActionRow(
+                title="IBus Input Method Conflict",
+                subtitle=(
+                    "Ctrl+Space is also used by IBus (Ubuntu's input method switcher), "
+                    "causing a brief popup when you trigger Linux Flow. "
+                    "Click Fix to disable the IBus hotkey — this does not affect typing."
+                ),
+            )
+            ibus_row.set_subtitle_lines(4)
 
-        ibus_status = self._ibus_status_label()
-        ibus_row.add_suffix(ibus_status)
+            ibus_status = self._ibus_status_label()
+            ibus_row.add_suffix(ibus_status)
 
-        fix_btn = Gtk.Button(label="Fix")
-        fix_btn.set_valign(Gtk.Align.CENTER)
-        fix_btn.add_css_class("suggested-action")
-        fix_btn.connect("clicked", lambda _, lbl=ibus_status: self._on_fix_ibus(lbl))
-        ibus_row.add_suffix(fix_btn)
+            fix_btn = Gtk.Button(label="Fix")
+            fix_btn.set_valign(Gtk.Align.CENTER)
+            fix_btn.add_css_class("suggested-action")
+            fix_btn.connect("clicked", lambda _, lbl=ibus_status: self._on_fix_ibus(lbl))
+            ibus_row.add_suffix(fix_btn)
 
-        reset_btn = Gtk.Button(label="Reset")
-        reset_btn.set_valign(Gtk.Align.CENTER)
-        reset_btn.add_css_class("flat")
-        reset_btn.set_tooltip_text("Restore IBus default hotkey")
-        reset_btn.connect(
-            "clicked", lambda _, lbl=ibus_status: self._on_reset_ibus(lbl)
-        )
-        ibus_row.add_suffix(reset_btn)
+            reset_btn = Gtk.Button(label="Reset")
+            reset_btn.set_valign(Gtk.Align.CENTER)
+            reset_btn.add_css_class("flat")
+            reset_btn.set_tooltip_text("Restore IBus default hotkey")
+            reset_btn.connect(
+                "clicked", lambda _, lbl=ibus_status: self._on_reset_ibus(lbl)
+            )
+            ibus_row.add_suffix(reset_btn)
 
-        compat_group.add(ibus_row)
+            compat_group.add(ibus_row)
 
         # --- Debug group ---
         debug_group = Adw.PreferencesGroup(title="Diagnostics")
@@ -139,6 +140,18 @@ class AdvancedPage(Gtk.Box):
             subtitle=str(_APP_DIR / "history.db"),
         )
         debug_group.add(db_row)
+
+    def _ibus_schema_exists(self) -> bool:
+        """Check if the IBus gsettings schema is installed on this system."""
+        try:
+            result = subprocess.run(
+                ["gsettings", "list-keys", "org.freedesktop.ibus.general.hotkey"],
+                capture_output=True,
+                text=True,
+            )
+            return result.returncode == 0
+        except FileNotFoundError:
+            return False
 
     def _ibus_status_label(self) -> Gtk.Label:
         lbl = Gtk.Label()

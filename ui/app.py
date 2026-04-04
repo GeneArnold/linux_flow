@@ -35,6 +35,10 @@ class LinuxFlowApp(Adw.Application):
             application_id="com.genearnold.linux_flow",
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
         )
+        # Use AdwStyleManager instead of deprecated gtk-application-prefer-dark-theme
+        style_manager = Adw.StyleManager.get_default()
+        style_manager.set_color_scheme(Adw.ColorScheme.PREFER_DARK)
+
         self._engine = Engine()
         self._window: MainWindow | None = None
         self._tray: Tray | None = None
