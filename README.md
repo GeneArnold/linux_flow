@@ -17,7 +17,7 @@ Linux Flow is a free, open-source voice dictation app for Linux. It captures you
 - **Hold-to-record** — hold your hotkey, speak, release. Done.
 - **Instant transcription** — Groq Whisper returns results in under a second
 - **AI enhancement modes** — Raw (exact words), Clean (fix grammar + remove filler words), or Rewrite (polished prose)
-- **Auto-injects text** — types directly into the active window via xdotool
+- **Auto-injects text** — types directly into the active window (xdotool on X11, wtype on Wayland)
 - **History log** — every transcription saved locally in SQLite; browse and copy from the app
 - **System tray** — runs in the background, accessible from the notification area
 - **Waveform overlay** — floating mic indicator while recording
@@ -29,15 +29,17 @@ Linux Flow is a free, open-source voice dictation app for Linux. It captures you
 
 ## Requirements
 
-- Ubuntu 24.04 / GNOME (other distros should work with minor adjustments)
-- X11 session (Wayland support is stubbed and ready for a future contributor)
+- Linux with X11 or Wayland session
 - Python 3.12+
-- `xdotool` (text injection)
 - A free [Groq API key](https://console.groq.com)
+
+Tested on Ubuntu 24.04 (GNOME/X11) and Arch Linux (Wayland).
 
 ---
 
 ## Installation
+
+### Ubuntu / Debian
 
 ```bash
 # 1. Clone
@@ -57,6 +59,36 @@ pip install -r requirements.txt
 bash install.sh
 
 # 5. Launch from your app menu, or run directly:
+python main.py
+```
+
+### Arch Linux
+
+```bash
+# 1. Clone
+git clone https://github.com/GeneArnold/linux_flow.git
+cd linux_flow
+
+# 2. Install system dependencies
+sudo pacman -S python-gobject python-cairo gtk4 libadwaita \
+    gobject-introspection gcc
+
+# For X11 sessions:
+sudo pacman -S xdotool xclip
+
+# For Wayland sessions:
+sudo pacman -S wl-clipboard wtype
+sudo usermod -aG input $USER   # then log out and back in
+
+# 3. Create virtual environment and install Python packages
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 4. Install icon and desktop entry
+bash install.sh
+
+# 5. Launch:
 python main.py
 ```
 
@@ -124,7 +156,7 @@ linux_flow/
 ├── adapters/
 │   ├── base.py          ABCs + factory functions (auto-detects X11 vs Wayland).
 │   ├── x11.py           xdotool text injection + pynput hotkey listener.
-│   └── wayland.py       Stubs ready for a future Wayland implementation.
+│   └── wayland.py       wtype text injection + evdev hotkey listener.
 │
 ├── db/
 │   └── history.py       SQLite store for transcription history.
@@ -141,7 +173,7 @@ linux_flow/
     └── linux-flow.svg   App icon (installed by install.sh)
 ```
 
-**Threading model:** The pynput hotkey listener runs on its own thread. When the hotkey fires, `_process()` runs on a fresh daemon thread so Groq API calls never block the UI or the listener. All UI callbacks use `GLib.idle_add()` to safely cross back onto the GTK main thread.
+**Threading model:** The hotkey listener (pynput on X11, evdev on Wayland) runs on its own thread. When the hotkey fires, `_process()` runs on a fresh daemon thread so Groq API calls never block the UI or the listener. All UI callbacks use `GLib.idle_add()` to safely cross back onto the GTK main thread.
 
 **GTK3/GTK4 isolation:** pystray uses AppIndicator3 (GTK3). Loading GTK3 and GTK4 in the same process crashes. The tray icon runs as a completely separate subprocess (`tray_process.py`) that communicates with the main app via JSON over stdin/stdout.
 
@@ -180,8 +212,9 @@ GROQ_API_KEY="gsk_your_key_here"
 
 ## Known Limitations
 
-- **X11 only** — Wayland adapters are stubbed but not implemented. PRs welcome.
-- **Hotkey passthrough** — pynput is a passive listener on X11; the hotkey combo still reaches the active application. Apps that respond to `Ctrl+Space` (browsers, some IDEs) may show a brief popup. Fixing this requires an exclusive X11 key grab.
+- **Hotkey passthrough (X11)** — pynput is a passive listener on X11; the hotkey combo still reaches the active application. Apps that respond to `Ctrl+Space` (browsers, some IDEs) may show a brief popup. Fixing this requires an exclusive X11 key grab.
+- **Wayland overlay positioning** — the recording overlay appears as a regular window positioned by the compositor rather than anchoring to a screen edge. Installing `gtk4-layer-shell` can improve this.
+- **Wayland input group** — the evdev hotkey listener requires the user to be in the `input` group to read keyboard events.
 
 ---
 
@@ -189,7 +222,6 @@ GROQ_API_KEY="gsk_your_key_here"
 
 Pull requests welcome. Open items:
 
-- **Wayland support** — `adapters/wayland.py` stubs are ready, needs implementation via `python-evdev` (hotkeys) and `wl-copy` + `ydotool` (text injection)
 - **REST API** — `api/` directory is scaffolded but empty. A simple FastAPI or Flask layer exposing `/transcribe` and `/history` endpoints would let other tools trigger dictation and pull history programmatically
 
 ---

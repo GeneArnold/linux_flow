@@ -3,10 +3,13 @@
 Shows a waveform visualizer centered at the top or bottom of the screen
 while linux_flow is actively recording.
 
-Positioning uses xdotool since GTK4 removed window.move().
+On X11, positioning uses xdotool since GTK4 removed window.move().
+On Wayland, the window is presented as a regular window (compositors
+handle placement; gtk4-layer-shell can be used for precise control).
 """
 
 import math
+import os
 import threading
 from collections import deque
 
@@ -24,12 +27,14 @@ _OVERLAY_HEIGHT = 64
 _UPDATE_HZ = 30
 _EDGE_MARGIN = 40
 
-
 _OVERLAY_TITLE = "linux_flow_overlay"
+_IS_WAYLAND = os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
 
 
 def _xdotool_move(x: int, y: int) -> None:
-    """Move overlay window using xdotool."""
+    """Move overlay window using xdotool (X11 only)."""
+    if _IS_WAYLAND:
+        return
     import subprocess
 
     try:
@@ -95,15 +100,22 @@ class Overlay:
         win.set_decorated(False)
         win.set_resizable(False)
         win.set_default_size(_OVERLAY_WIDTH, _OVERLAY_HEIGHT)
-        win.set_opacity(0.0)  # invisible until positioned
         win.set_title(_OVERLAY_TITLE)
 
+        if _IS_WAYLAND:
+            # On Wayland, present as a normal undecorated window.
+            # The compositor will handle placement.
+            win.set_opacity(0.92)
+        else:
+            win.set_opacity(0.0)  # invisible until positioned by xdotool
+
         def _on_map(w):
+            if _IS_WAYLAND:
+                return
             def _move_then_show():
                 _xdotool_move(x, y)
                 w.set_opacity(0.92)
                 return False
-
             GLib.timeout_add(80, _move_then_show)
 
         win.connect("map", _on_map)
