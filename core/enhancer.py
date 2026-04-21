@@ -17,16 +17,19 @@ Why the meta-response guard exists:
 
 from groq import Groq
 
-_PROMPTS = {
+_DEFAULT_PROMPTS = {
     "clean": (
         "You are a transcription editor. The user dictated the following text. "
-        "Fix grammar, punctuation, and capitalization. Remove filler words like "
-        "'um', 'uh', 'you know', 'like'. Keep the meaning and tone identical. "
+        "Add correct punctuation and capitalization. Remove filler words like "
+        "'um', 'uh', 'you know', 'like'. Do NOT change any words, fix grammar, "
+        "or restructure sentences — only add punctuation and capitalization. "
         "Return ONLY the corrected text, nothing else."
     ),
     "rewrite": (
         "You are a professional writer. The user dictated the following rough speech. "
-        "Rewrite it as clear, polished prose. Preserve the core meaning and intent. "
+        "Fix grammar, restructure sentences, and rewrite it as clear, polished prose. "
+        "Combine fragments, improve flow, and tighten wording. "
+        "Preserve the core meaning and intent. "
         "Return ONLY the rewritten text, nothing else."
     ),
 }
@@ -43,9 +46,15 @@ _META_PHRASES = (
 
 
 class Enhancer:
-    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "llama-3.3-70b-versatile",
+        prompts: dict[str, str] | None = None,
+    ):
         self._client = Groq(api_key=api_key)
         self._model = model
+        self._prompts = prompts or _DEFAULT_PROMPTS
 
     def enhance(self, text: str, mode: str = "clean") -> str:
         """Enhance the transcript according to mode.
@@ -58,7 +67,7 @@ class Enhancer:
         if mode == "raw" or not text.strip():
             return text
 
-        system_prompt = _PROMPTS.get(mode, _PROMPTS["clean"])
+        system_prompt = self._prompts.get(mode, self._prompts["clean"])
         response = self._client.chat.completions.create(
             model=self._model,
             messages=[

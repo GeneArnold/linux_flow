@@ -39,7 +39,23 @@ _DEFAULTS = {
         "whisper_model": "whisper-large-v3",
         "llm_model": "llama-3.3-70b-versatile",
     },
-    "enhancement": {"mode": "clean"},
+    "enhancement": {
+        "mode": "clean",
+        "prompt_clean": (
+            "You are a transcription editor. The user dictated the following text. "
+            "Add correct punctuation and capitalization. Remove filler words like "
+            "'um', 'uh', 'you know', 'like'. Do NOT change any words, fix grammar, "
+            "or restructure sentences — only add punctuation and capitalization. "
+            "Return ONLY the corrected text, nothing else."
+        ),
+        "prompt_rewrite": (
+            "You are a professional writer. The user dictated the following rough speech. "
+            "Fix grammar, restructure sentences, and rewrite it as clear, polished prose. "
+            "Combine fragments, improve flow, and tighten wording. "
+            "Preserve the core meaning and intent. "
+            "Return ONLY the rewritten text, nothing else."
+        ),
+    },
     "output": {"auto_paste": True, "save_history": True},
     "ui": {"overlay_position": "bottom"},
 }

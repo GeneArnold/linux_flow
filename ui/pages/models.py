@@ -1,4 +1,4 @@
-"""Models settings page — Groq API key and model selection."""
+"""Models settings page — Groq API key, model selection, and enhancement prompts."""
 
 import threading
 
@@ -123,6 +123,103 @@ class ModelsPage(Gtk.Box):
         self._llm_combo.connect("notify::selected", self._on_llm_changed)
         llm_row.add_suffix(self._llm_combo)
         llm_group.add(llm_row)
+
+        # --- Enhancement Prompts ---
+        from config import _DEFAULTS
+
+        self._default_prompts = _DEFAULTS["enhancement"]
+
+        prompt_group = Adw.PreferencesGroup(
+            title="Enhancement Prompts",
+            description="System prompts sent to the LLM for each mode",
+        )
+        outer.append(prompt_group)
+
+        # Clean prompt
+        clean_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        clean_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        clean_label = Gtk.Label(label="Clean Mode Prompt")
+        clean_label.set_xalign(0)
+        clean_label.set_hexpand(True)
+        clean_label.add_css_class("heading")
+        clean_header.append(clean_label)
+
+        clean_reset = Gtk.Button(label="Reset")
+        clean_reset.set_valign(Gtk.Align.CENTER)
+        clean_reset.add_css_class("flat")
+        clean_reset.set_tooltip_text("Restore default prompt")
+        clean_reset.connect("clicked", self._on_reset_clean)
+        clean_header.append(clean_reset)
+        clean_box.append(clean_header)
+
+        self._clean_text = Gtk.TextView()
+        self._clean_text.set_wrap_mode(Gtk.WrapMode.WORD)
+        self._clean_text.get_buffer().set_text(self._cfg["enhancement"]["prompt_clean"])
+        self._clean_text.set_size_request(-1, 100)
+        self._clean_text.add_css_class("card")
+        clean_frame = Gtk.Frame()
+        clean_frame.set_child(self._clean_text)
+        clean_box.append(clean_frame)
+        prompt_group.add(clean_box)
+
+        # Rewrite prompt
+        rewrite_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        rewrite_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        rewrite_label = Gtk.Label(label="Rewrite Mode Prompt")
+        rewrite_label.set_xalign(0)
+        rewrite_label.set_hexpand(True)
+        rewrite_label.add_css_class("heading")
+        rewrite_header.append(rewrite_label)
+
+        rewrite_reset = Gtk.Button(label="Reset")
+        rewrite_reset.set_valign(Gtk.Align.CENTER)
+        rewrite_reset.add_css_class("flat")
+        rewrite_reset.set_tooltip_text("Restore default prompt")
+        rewrite_reset.connect("clicked", self._on_reset_rewrite)
+        rewrite_header.append(rewrite_reset)
+        rewrite_box.append(rewrite_header)
+
+        self._rewrite_text = Gtk.TextView()
+        self._rewrite_text.set_wrap_mode(Gtk.WrapMode.WORD)
+        self._rewrite_text.get_buffer().set_text(
+            self._cfg["enhancement"]["prompt_rewrite"]
+        )
+        self._rewrite_text.set_size_request(-1, 100)
+        self._rewrite_text.add_css_class("card")
+        rewrite_frame = Gtk.Frame()
+        rewrite_frame.set_child(self._rewrite_text)
+        rewrite_box.append(rewrite_frame)
+        prompt_group.add(rewrite_box)
+
+        # Save button for prompts
+        save_prompts_btn = Gtk.Button(label="Save Prompts")
+        save_prompts_btn.add_css_class("suggested-action")
+        save_prompts_btn.add_css_class("pill")
+        save_prompts_btn.set_halign(Gtk.Align.END)
+        save_prompts_btn.set_margin_top(8)
+        save_prompts_btn.connect("clicked", self._on_save_prompts)
+        prompt_group.add(save_prompts_btn)
+
+    def _get_buffer_text(self, text_view: Gtk.TextView) -> str:
+        buf = text_view.get_buffer()
+        return buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)
+
+    def _on_save_prompts(self, _) -> None:
+        config.set_value(
+            "enhancement", "prompt_clean", self._get_buffer_text(self._clean_text)
+        )
+        config.set_value(
+            "enhancement", "prompt_rewrite", self._get_buffer_text(self._rewrite_text)
+        )
+        self._engine.reload()
+
+    def _on_reset_clean(self, _) -> None:
+        self._clean_text.get_buffer().set_text(self._default_prompts["prompt_clean"])
+
+    def _on_reset_rewrite(self, _) -> None:
+        self._rewrite_text.get_buffer().set_text(
+            self._default_prompts["prompt_rewrite"]
+        )
 
     def _save_key(self) -> None:
         config.set_value("groq", "api_key", self._key_row.get_text())

@@ -16,10 +16,11 @@ Linux Flow is a free, open-source voice dictation app for Linux. It captures you
 
 - **Hold-to-record** — hold your hotkey, speak, release. Done.
 - **Instant transcription** — Groq Whisper returns results in under a second
-- **AI enhancement modes** — Raw (exact words), Clean (fix grammar + remove filler words), or Rewrite (polished prose)
+- **AI enhancement modes** — Raw (exact words), Clean (punctuation + filler removal), or Rewrite (polished prose)
+- **Customizable prompts** — edit the Clean and Rewrite system prompts in Settings, with one-click reset to defaults
 - **Auto-injects text** — types directly into the active window via xdotool
 - **History log** — every transcription saved locally in SQLite; browse and copy from the app
-- **System tray** — runs in the background, accessible from the notification area
+- **System tray** — runs in the background with three-state icon: idle (white mic), recording (red mic), processing (white star)
 - **Waveform overlay** — floating mic indicator while recording
 - **Configurable hotkey** — click to capture any combo you want
 - **Mic selector** — pick any input device, supports PipeWire / PulseAudio / ALSA
@@ -102,6 +103,7 @@ Runs silently in the background. Right-click to copy last transcript, open setti
 | Change hotkey | Settings → General → click the combo button |
 | Change mic | Settings → General → Microphone dropdown |
 | AI enhancement | Settings → General → Mode (Raw / Clean / Rewrite) |
+| Edit prompts | Settings → Models → Enhancement Prompts |
 | Browse history | Settings → History |
 | Enable autostart | Settings → Advanced → Launch on Login |
 
@@ -165,6 +167,8 @@ llm_model = "llama-3.3-70b-versatile"
 
 [enhancement]
 mode = "raw"            # raw | clean | rewrite
+prompt_clean = "..."    # system prompt for clean mode (editable in Settings)
+prompt_rewrite = "..."  # system prompt for rewrite mode (editable in Settings)
 
 [output]
 auto_paste = true       # false = clipboard only
@@ -189,6 +193,8 @@ GROQ_API_KEY="gsk_your_key_here"
 
 Pull requests welcome. Open items:
 
+- **Multi-provider support** — currently Groq-only. The Models page should offer a provider dropdown (Groq, OpenAI, Anthropic, Gemini) with dynamic model lists and per-provider API key storage
+- **Overlay off option** — add an "off" choice to the overlay position setting (top / bottom / off) so users can rely on the tray icon alone
 - **Wayland support** — `adapters/wayland.py` stubs are ready, needs implementation via `python-evdev` (hotkeys) and `wl-copy` + `ydotool` (text injection)
 - **REST API** — `api/` directory is scaffolded but empty. A simple FastAPI or Flask layer exposing `/transcribe` and `/history` endpoints would let other tools trigger dictation and pull history programmatically
 

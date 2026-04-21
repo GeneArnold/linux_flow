@@ -15,13 +15,14 @@ The window hides (not destroys) on close so the app keeps running in the tray.
 To truly quit, the user selects Quit from the tray menu.
 """
 
+import signal
 import sys
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio
+from gi.repository import Adw, Gio, GLib
 
 from core.engine import Engine
 from ui.overlay import Overlay
@@ -46,10 +47,14 @@ class LinuxFlowApp(Adw.Application):
         # Build window (hidden by default — shown below on first launch)
         self._window = MainWindow(app, self._engine)
 
-        # Wire engine callbacks to overlay and tray
+        # Wire engine callbacks to overlay and tray.
+        # Window/pages may have already set on_result/on_error — wrap them
+        # so both the existing handler and our tray updates run.
         self._engine.on_audio_level = self._overlay.push_level
         self._engine.on_recording_start = self._on_recording_start
         self._engine.on_recording_stop = self._on_recording_stop
+        self._wrap_callback("on_result", self._on_result)
+        self._wrap_callback("on_error", self._on_error)
 
         # Tray runs as a subprocess to avoid the GTK3/GTK4 conflict
         self._tray = Tray(
@@ -59,6 +64,10 @@ class LinuxFlowApp(Adw.Application):
         )
         self._tray.build()
 
+        # Ensure clean shutdown on SIGTERM/SIGINT (e.g. kill, Ctrl+C)
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, self._quit)
+
         # Start engine — hotkey listener goes live here
         try:
             self._engine.start()
@@ -67,6 +76,19 @@ class LinuxFlowApp(Adw.Application):
 
         # Show settings window on first launch so the user can configure the API key
         self._show_window()
+
+    def _wrap_callback(self, attr: str, handler) -> None:
+        """Chain handler onto an existing engine callback without replacing it."""
+        existing = getattr(self._engine, attr, None)
+        if existing:
+
+            def chained(*args, **kwargs):
+                existing(*args, **kwargs)
+                handler(*args, **kwargs)
+
+            setattr(self._engine, attr, chained)
+        else:
+            setattr(self._engine, attr, handler)
 
     def _show_window(self) -> None:
         """Bring the settings window to the front (creates it if needed)."""
@@ -80,14 +102,26 @@ class LinuxFlowApp(Adw.Application):
             self._tray.set_recording(True)
 
     def _on_recording_stop(self) -> None:
-        """Hotkey released — hide overlay and reset tray icon."""
+        """Hotkey released — hide overlay, show processing star in tray."""
         self._overlay.hide()
         if self._tray:
             self._tray.set_recording(False)
+            self._tray.set_processing(True)
 
-    def _quit(self) -> None:
+    def _on_result(self, raw: str, final: str, injected: bool) -> None:
+        """Pipeline complete — return tray to idle mic icon."""
+        if self._tray:
+            self._tray.set_processing(False)
+
+    def _on_error(self, message: str) -> None:
+        """Pipeline failed — return tray to idle mic icon."""
+        if self._tray:
+            self._tray.set_processing(False)
+
+    def _quit(self) -> bool:
         """Clean shutdown: stop engine, kill tray subprocess, quit GTK loop."""
         self._engine.stop()
         if self._tray:
             self._tray.stop()
         self.quit()
+        return GLib.SOURCE_REMOVE

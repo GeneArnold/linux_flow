@@ -11,10 +11,10 @@ import config
 from core.recorder import Recorder
 
 _MODES = ["raw", "clean", "rewrite"]
-_MODE_LABELS = ["Raw (no AI)", "Clean (fix grammar)", "Rewrite (polish prose)"]
+_MODE_LABELS = ["Raw (no AI)", "Clean (punctuation only)", "Rewrite (polish prose)"]
 _MODE_HINTS = [
     "Exact words, no changes",
-    "Fix grammar, remove filler",
+    "Punctuation, caps, remove filler",
     "Polish into flowing prose",
 ]
 

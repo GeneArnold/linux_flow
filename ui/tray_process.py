@@ -6,6 +6,7 @@ GTK4 window never share the same process. Communicates via stdin/stdout
 as newline-delimited JSON.
 
 Commands from parent  → stdin:   {"cmd": "set_recording", "value": true/false}
+                                  {"cmd": "set_processing", "value": true/false}
                                   {"cmd": "quit"}
 Events to parent      → stdout:  {"event": "copy_last"}
                                   {"event": "open_settings"}
@@ -20,7 +21,7 @@ import pystray
 from PIL import Image, ImageDraw
 
 
-def _make_icon(recording: bool = False) -> Image.Image:
+def _make_mic_icon(recording: bool = False) -> Image.Image:
     size = 64
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -37,6 +38,25 @@ def _make_icon(recording: bool = False) -> Image.Image:
 
     # Base
     d.rounded_rectangle([19, 57, 45, 62], radius=3, fill=color)
+
+    return img
+
+
+def _make_star_icon() -> Image.Image:
+    import math
+
+    size = 64
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    color = (210, 210, 210, 255)
+
+    cx, cy, outer, inner = 32, 32, 28, 11
+    points = []
+    for i in range(10):
+        r = outer if i % 2 == 0 else inner
+        angle = math.radians(-90 + i * 36)
+        points.append((cx + r * math.cos(angle), cy + r * math.sin(angle)))
+    d.polygon(points, fill=color)
 
     return img
 
@@ -69,13 +89,22 @@ def _read_commands(icon) -> None:
             continue
         cmd = msg.get("cmd")
         if cmd == "set_recording":
-            icon.icon = _make_icon(msg.get("value", False))
+            icon.icon = _make_mic_icon(msg.get("value", False))
             icon.title = (
                 "Linux Flow — Recording..." if msg.get("value") else "Linux Flow"
             )
+        elif cmd == "set_processing":
+            if msg.get("value", False):
+                icon.icon = _make_star_icon()
+                icon.title = "Linux Flow — Processing..."
+            else:
+                icon.icon = _make_mic_icon(False)
+                icon.title = "Linux Flow"
         elif cmd == "quit":
             icon.stop()
-            break
+            return
+    # stdin closed — parent process is gone, shut down
+    icon.stop()
 
 
 def main() -> None:
@@ -90,7 +119,7 @@ def main() -> None:
     )
     icon = pystray.Icon(
         name="linux-flow",
-        icon=_make_icon(False),
+        icon=_make_mic_icon(False),
         title="Linux Flow",
         menu=menu,
     )

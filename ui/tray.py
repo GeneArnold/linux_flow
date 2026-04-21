@@ -9,6 +9,7 @@ WHY a subprocess?
 IPC protocol (newline-delimited JSON):
     Parent → child (via stdin):
         {"cmd": "set_recording", "value": true/false}
+        {"cmd": "set_processing", "value": true/false}
         {"cmd": "quit"}
 
     Child → parent (via stdout):
@@ -21,6 +22,8 @@ events back onto the GTK main loop via GLib.idle_add.
 """
 
 import json
+import os
+import signal
 import subprocess
 import threading
 from pathlib import Path
@@ -30,6 +33,28 @@ from gi.repository import GLib
 _TRAY_SCRIPT = Path(__file__).parent / "tray_process.py"
 # Use the venv Python explicitly so tray_process.py gets the same packages
 _PYTHON = Path(__file__).parent.parent / "venv" / "bin" / "python"
+
+
+def _kill_stale_tray_processes() -> None:
+    """Find and kill any orphaned tray_process.py instances from previous runs."""
+    my_pid = os.getpid()
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", str(_TRAY_SCRIPT)],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        for line in result.stdout.strip().splitlines():
+            pid = int(line.strip())
+            if pid == my_pid:
+                continue
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+        pass
 
 
 class Tray:
@@ -42,6 +67,7 @@ class Tray:
 
     def build(self) -> None:
         """Launch the tray subprocess and start the event reader thread."""
+        _kill_stale_tray_processes()
         self._proc = subprocess.Popen(
             [str(_PYTHON), str(_TRAY_SCRIPT)],
             stdin=subprocess.PIPE,
@@ -55,6 +81,10 @@ class Tray:
     def set_recording(self, recording: bool) -> None:
         """Tell the tray process to update its icon and tooltip."""
         self._send({"cmd": "set_recording", "value": recording})
+
+    def set_processing(self, processing: bool) -> None:
+        """Tell the tray process to show the star (processing) or mic (idle) icon."""
+        self._send({"cmd": "set_processing", "value": processing})
 
     def stop(self) -> None:
         """Cleanly shut down the tray subprocess."""

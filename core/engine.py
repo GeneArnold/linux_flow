@@ -153,6 +153,10 @@ class Engine:
         self._enhancer = Enhancer(
             api_key=cfg["groq"]["api_key"],
             model=cfg["groq"]["llm_model"],
+            prompts={
+                "clean": cfg["enhancement"]["prompt_clean"],
+                "rewrite": cfg["enhancement"]["prompt_rewrite"],
+            },
         )
         self._injector = get_injector()
         self._listener = get_hotkey_listener(
