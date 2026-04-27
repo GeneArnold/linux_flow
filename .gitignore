@@ -6,5 +6,6 @@ __pycache__/
 # SQLite history is personal data — not committed
 history.db
 history.db-journal
-# Claude Code session files
+# Claude Code session files (local per-machine)
 .claude/
+CLAUDE.md

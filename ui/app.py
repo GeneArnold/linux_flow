@@ -44,7 +44,13 @@ class LinuxFlowApp(Adw.Application):
         self.connect("activate", self._on_activate)
 
     def _on_activate(self, app) -> None:
-        # Build window (hidden by default — shown below on first launch)
+        # GTK fires "activate" again every time the user re-launches the app
+        # (e.g. clicks the dock icon while it's already running). Without this
+        # guard we'd spawn a second tray subprocess and a second hotkey listener.
+        if self._window is not None:
+            self._show_window()
+            return
+
         self._window = MainWindow(app, self._engine)
 
         # Wire engine callbacks to overlay and tray.

@@ -40,17 +40,33 @@ Linux Flow is a free, open-source voice dictation app for Linux. It captures you
 
 ## Installation
 
+Tested on Ubuntu 24.04 + GNOME (X11). The steps below assume a fresh box — every package listed has been needed at least once on a clean install.
+
 ```bash
 # 1. Clone
 git clone https://github.com/GeneArnold/linux_flow.git
 cd linux_flow
 
-# 2. Install system dependencies
-sudo apt install xdotool xclip python3-gi python3-gi-cairo \
-    gir1.2-gtk-4.0 gir1.2-adw-1 libgirepository1.0-dev gcc
+# 2. Install system dependencies.
+#    Groups, in order:
+#      - text injection / clipboard (xdotool, xclip)
+#      - GTK4 + Adwaita bindings for the settings UI
+#      - AppIndicator3 for the system-tray icon (separate GTK3 subprocess)
+#      - PortAudio runtime for sounddevice
+#      - Python venv module + dev headers (the `evdev` transitive of pynput
+#        compiles a small C extension and needs Python.h)
+sudo apt install \
+    xdotool xclip \
+    python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
+    gir1.2-appindicator3-0.1 \
+    libgirepository1.0-dev libportaudio2 \
+    python3-venv python3-dev gcc
 
-# 3. Create virtual environment and install Python packages
-python3 -m venv venv
+# 3. Create virtual environment WITH access to system site-packages.
+#    --system-site-packages is REQUIRED so the venv can see python3-gi
+#    (PyGObject). PyGObject is supplied by apt; pip-installing it is not
+#    a supported path on Debian/Ubuntu and will fail in subtle ways.
+python3 -m venv --system-site-packages venv
 source venv/bin/activate
 pip install -r requirements.txt
 
@@ -61,7 +77,24 @@ bash install.sh
 python main.py
 ```
 
-On first launch, go to **Settings → Models**, paste your Groq API key, and click the save button. Hit **Verify Connection** to confirm everything is working.
+On first launch, go to **Settings → Models**, paste your Groq API key, and click the save button. Hit **Verify Connection** to confirm everything is working. The key is written to a gitignored `.env` file — never to `linux_flow.toml`.
+
+### Troubleshooting a fresh install
+
+If `python main.py` exits silently when launched from the dock, run it from a terminal so you can see the traceback. Common errors and their fixes:
+
+| Error | Cause / Fix |
+|---|---|
+| `ensurepip is not available` | Missing `python3-venv` — add it via apt and recreate the venv. |
+| `Python.h: No such file or directory` (during `pip install`) | Missing `python3-dev` — add it via apt and re-run `pip install`. |
+| `ModuleNotFoundError: No module named 'gi'` | Venv was created without `--system-site-packages`. Delete `venv/` and recreate it with the flag. |
+| `OSError: PortAudio library not found` | Missing `libportaudio2` — add it via apt. |
+| `ModuleNotFoundError: No module named 'numpy'` | Older clone with stale `requirements.txt` — pull latest and re-run `pip install -r requirements.txt`. |
+| `ValueError: Namespace Gtk is already loaded with version 4.0` while importing `pystray` | Expected. pystray uses GTK3 and only works inside the tray subprocess (`ui/tray_process.py`), not the main GTK4 process. Don't import it from `main.py`. |
+
+### Note on `linux_flow.toml`
+
+The TOML config is currently checked into git, but it contains host-specific values (especially `audio.device_index` — the mic index varies per machine). After cloning, expect to re-pick your microphone in **Settings → General**; the saved value will then show as a local-only modification under `git status`. Don't commit it. (Untracking the file is on the to-do list.)
 
 ---
 
